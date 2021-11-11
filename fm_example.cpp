@@ -88,24 +88,6 @@ static void print_rds_info() {
         rds_get_radio_text_str(&rds_parser));
     myOled.write_string(1,0,4,f, FONT_6x8, 0, 1);
 #endif
-
-#if RDS_PARSER_ALTERNATIVE_FREQUENCIES_ENABLE
-    size_t alt_freq_count = rds_get_alternative_frequency_count(&rds_parser);
-    printf("      ALT: %zu", alt_freq_count);
-    if (0 < alt_freq_count) {
-        printf(" -- ");
-        for (size_t i = 0; i < alt_freq_count; i++) {
-            uint8_t freq = rds_get_alternative_frequency(&rds_parser, i);
-            printf("%.1f", rds_decode_alternative_frequency(freq));
-            if (i + 1 < alt_freq_count) {
-                printf(", ");
-            }
-        }
-        puts(" MHz");
-    } else {
-        puts("");
-    }
-#endif
 }
 
 static void update_rds() {
@@ -167,11 +149,15 @@ static void loop() {
             if (ch == '-') {
                 if (0 < fm_get_volume(&radio)) {
                     fm_set_volume(&radio, fm_get_volume(&radio) - 1);
+                    sprintf(f, "Volume : %u         ", fm_get_volume(&radio));
+                    myOled.write_string(0,0,7,(char*)f, FONT_6x8, 0, 1);
                     printf("Set volume: %u\n", fm_get_volume(&radio));
                 }
             } else if (ch == '=') {
                 if (fm_get_volume(&radio) < 30) {
                     fm_set_volume(&radio, fm_get_volume(&radio) + 1);
+                    sprintf(f, "Volume : %u         ", fm_get_volume(&radio));
+                    myOled.write_string(0,0,7,(char*)f, FONT_6x8, 0, 1);
                     printf("Set volume: %u\n", fm_get_volume(&radio));
                 }
             } else if ('0' < ch && ch <= '0' + count_of(STATION_PRESETS)) {
@@ -281,10 +267,12 @@ static void loop() {
     print_rds_info();
     adc_select_input(1);
     uint left_spk_raw = adc_read();
-    sprintf(f, "ADC : %u         ", left_spk_raw);
-    myOled.write_string(0,0,6,f, FONT_6x8, 0, 1);
+    uint8_t quality = fm_get_rssi(&radio);
+    uint16_t led_bright = (255 * quality)/100;
     pwm_clear_irq(pwm_gpio_to_slice_num(LED_PIN));
-    pwm_set_gpio_level(LED_PIN, left_spk_raw);
+    pwm_set_gpio_level(LED_PIN, led_bright * led_bright);
+    sprintf(f, "RSSI: %u ADC : %u   ", quality, left_spk_raw);
+    myOled.write_string(0,0,6,f, FONT_6x8, 0, 1);
     sleep_ms(40);
 }
 
@@ -318,10 +306,13 @@ int main() {
     myOled.set_contrast(CONTRAST);
     myOled.write_string(0,30,0,(char*)"Pico Radio", FONT_6x8, 0, 1);
     myOled.write_string(0,0,1,(char*)"--------------------------------", FONT_6x8, 0, 1);
-
+    print_rds_info();
     fm_power_up(&radio, FM_CONFIG);
     fm_set_frequency_blocking(&radio, DEFAULT_FREQUENCY);
     fm_set_volume(&radio, 1);
+    char f[100];
+    sprintf(f, "Volume : %u         ", 1);
+    myOled.write_string(0,0,7,(char*)f, FONT_6x8, 0, 1);
     fm_set_mute(&radio, false);
 
     rds_parser_reset(&rds_parser);
