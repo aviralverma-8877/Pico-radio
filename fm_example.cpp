@@ -22,6 +22,7 @@
 #define BUTTON_PIN 4
 #define LEFT_SPK 26
 #define RIGHT_SPK 27
+#define CHARGING_PIN 15
 
 static const uint SDIO_PIN = 2;
 static const uint SCLK_PIN = 3;
@@ -273,6 +274,13 @@ static void loop() {
     pwm_set_gpio_level(LED_PIN, led_bright * led_bright);
     sprintf(f, "RSSI: %u ADC : %u   ", quality, left_spk_raw);
     myOled.write_string(0,0,6,f, FONT_6x8, 0, 1);
+    if(gpio_get(CHARGING_PIN)){
+        myOled.write_string(0,0,0,"...", FONT_6x8, 0, 1);
+    }
+    else
+    {
+        myOled.write_string(0,0,0,"   ", FONT_6x8, 0, 1);
+    }
     sleep_ms(40);
 }
 
@@ -291,6 +299,9 @@ int main() {
     pwm_config_set_clkdiv(&config, 4.f);
     pwm_init(slice_num, &config, true);
 
+    gpio_init(CHARGING_PIN);
+    gpio_set_dir(CHARGING_PIN, GPIO_IN);
+    gpio_pull_down(CHARGING_PIN);
 
     gpio_init(BUTTON_PIN);
     gpio_set_dir(BUTTON_PIN, GPIO_IN);
