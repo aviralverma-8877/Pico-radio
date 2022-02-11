@@ -3,16 +3,23 @@
  *
  * SPDX-License-Identifier: MIT
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <fm_rda5807.h>
 #include <rds_parser.h>
 #include <hardware/i2c.h>
 #include <pico/stdlib.h>
+#include "pico/multicore.h"
 #include <stdio.h>
+#include <string.h>
 #include "ss_oled.hpp"
 #include "hardware/gpio.h"
-#include "hardware/adc.h"
 #include "hardware/pwm.h"
+#include "analog_microphone.h"
+#include "tusb.h"
+#include "usb_microphone.h"
 
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
@@ -27,7 +34,16 @@
 static const uint SDIO_PIN = 2;
 static const uint SCLK_PIN = 3;
 
-static uint8_t ucBuffer[1024];
+const struct analog_microphone_config config = {
+    .gpio = RIGHT_SPK,
+    .bias_voltage = 1024,
+    .sample_rate = SAMPLE_RATE,
+    .sample_buffer_size = SAMPLE_BUFFER_SIZE,
+};
+
+int16_t sample_buffer[SAMPLE_BUFFER_SIZE];
+
+static uint8_t ucBuffer[1500];
 picoSSOLED myOled(OLED_128x64, 0x3c, 0, 0, i2c1, SDIO_PIN, SCLK_PIN, I2C_SPEED);    
 bool btn_pressed = false;
 uint8_t btn_press_delay = 0;
@@ -266,14 +282,11 @@ static void loop() {
         }
     }
     print_rds_info();
-    adc_select_input(1);
-    uint left_spk_raw = adc_read();
     uint8_t quality = fm_get_rssi(&radio);
     uint16_t led_bright = (255 * quality)/100;
     pwm_clear_irq(pwm_gpio_to_slice_num(LED_PIN));
     pwm_set_gpio_level(LED_PIN, led_bright * led_bright);
-    sprintf(f, "RSSI: %u ADC : %u   ", quality, left_spk_raw);
-    myOled.write_string(0,0,6,f, FONT_6x8, 0, 1);
+
     if(gpio_get(CHARGING_PIN)){
         myOled.write_string(0,0,0,"...", FONT_6x8, 0, 1);
     }
@@ -284,14 +297,37 @@ static void loop() {
     sleep_ms(40);
 }
 
+void on_analog_samples_ready()
+{
+    analog_microphone_read(sample_buffer, SAMPLE_BUFFER_SIZE);
+}
+
+void on_usb_microphone_tx_ready()
+{
+  usb_microphone_write(sample_buffer, sizeof(sample_buffer));
+}
+
+void core1_entry() {
+    usb_microphone_init();
+    usb_microphone_set_tx_ready_handler(on_usb_microphone_tx_ready);
+
+    if (analog_microphone_init(&config) < 0) {
+        while (1) { tight_loop_contents(); }
+    }
+    analog_microphone_set_samples_ready_handler(on_analog_samples_ready);
+    
+    if (analog_microphone_start() < 0) {
+        while (1) { tight_loop_contents();  }
+    }
+    while (1) {
+        usb_microphone_task();
+    }
+}
+
 int main() {
     stdio_init_all();
+    multicore_launch_core1(core1_entry);
     print_help();
-    adc_init();
-
-    adc_gpio_init(LEFT_SPK);
-    adc_gpio_init(RIGHT_SPK);
-
     gpio_set_function(LED_PIN, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(LED_PIN);
     pwm_clear_irq(slice_num);
@@ -325,9 +361,12 @@ int main() {
     sprintf(f, "Volume : %u         ", 1);
     myOled.write_string(0,0,7,(char*)f, FONT_6x8, 0, 1);
     fm_set_mute(&radio, false);
-
+    fm_set_mono(&radio, true);
     rds_parser_reset(&rds_parser);
     do {
         loop();
     } while (true);
 }
+#ifdef __cplusplus
+}
+#endif

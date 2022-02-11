@@ -9,16 +9,18 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_subdirectory(fm_rda5807)
-add_subdirectory(rds_parser)
-add_subdirectory(pico-ss-oled build)
-add_executable(fm_example fm_example.cpp)
+add_executable(fm_example fm_example.cpp usb_descriptors.c usb_microphone.c)
 
-pico_enable_stdio_uart(fm_example 1)
+pico_enable_stdio_uart(fm_example 0)
 pico_enable_stdio_usb(fm_example 1)
 
 pico_add_extra_outputs(fm_example)
 
 target_compile_options(fm_example PRIVATE -Wall -Wextra)
+target_include_directories(fm_example PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(fm_example pico_analog_microphone hardware_pwm fm_rda5807 rds_parser pico_ss_oled pico_multicore tinyusb_device tinyusb_board)
 
-target_link_libraries(fm_example fm_rda5807 rds_parser pico_stdlib pico_ss_oled hardware_adc hardware_pwm)
+add_subdirectory(./fm_rda5807)
+add_subdirectory(./rds_parser)
+add_subdirectory(./pico-ss-oled build)
+add_subdirectory(./pico_analog_microphone)
