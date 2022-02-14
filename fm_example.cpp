@@ -50,12 +50,12 @@ uint8_t btn_press_delay = 0;
 bool volume_control = false;
 // change this to match your local stations
 static const float STATION_PRESETS[] = {
-    92.7f, // Radio Romania Actualitati
-    93.5f, // EBS
-    91.7f, // RFI
-    95.6f, // Radio Cluj
-    101.0f, // Radio Romania Cultural
-    107.3f, // Itsy Bitsy
+    92.7f,
+    93.5f,
+    91.7f,
+    95.6f,
+    101.0f,
+    107.3f,
 };
 static_assert(count_of(STATION_PRESETS) <= 9, "");
 
