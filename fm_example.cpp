@@ -36,7 +36,8 @@ static const uint SCLK_PIN = 3;
 
 const struct analog_microphone_config config = {
     .gpio = RIGHT_SPK,
-    .bias_voltage = 1024,
+    .bias_voltage = 1.5,
+    .amp = 20,
     .sample_rate = SAMPLE_RATE,
     .sample_buffer_size = SAMPLE_BUFFER_SIZE,
 };

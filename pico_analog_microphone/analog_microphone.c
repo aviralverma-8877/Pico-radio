@@ -25,6 +25,7 @@ static struct {
     volatile int raw_buffer_read_index;
     uint buffer_size;
     int16_t bias;
+    int16_t amp_factor;
     uint dma_irq;
     analog_samples_ready_handler_t samples_ready_handler;
 } analog_mic;
@@ -43,6 +44,7 @@ int analog_microphone_init(const struct analog_microphone_config* config) {
 
     analog_mic.buffer_size = config->sample_buffer_size;
     analog_mic.bias = ((int16_t)((config->bias_voltage * 4095) / 3.3));
+    analog_mic.amp_factor = config->amp;
 
     for (int i = 0; i < ANALOG_RAW_BUFFER_COUNT; i++) {
         analog_mic.raw_buffer[i] = malloc(raw_buffer_size);
@@ -197,7 +199,7 @@ int analog_microphone_read(int16_t* buffer, size_t samples) {
     analog_mic.raw_buffer_read_index++;
 
     for (int i = 0; i < (int)samples; i++) {
-        *out++ = *in++ - bias;
+        *out++ = (*in++ - bias)*analog_mic.amp_factor;
     }
 
     return samples;

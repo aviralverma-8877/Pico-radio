@@ -13,6 +13,7 @@ typedef void (*analog_samples_ready_handler_t)(void);
 struct analog_microphone_config {
     uint gpio;
     float bias_voltage;
+    float amp;
     uint sample_rate;
     uint sample_buffer_size;
 };
