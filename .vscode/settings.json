@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "stdlib.h": "c",
-        "adc.h": "c"
-    }
-}
